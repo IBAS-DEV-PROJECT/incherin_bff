@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/index.ts",
-    "build": "tsc",
+    "build": "tsc && tsc netlify/functions/server.ts --outDir netlify/functions --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --rootDir .",
+    "build:netlify": "npm run build",
     "start": "node dist/index.js"
   },
   "keywords": [],
@@ -16,7 +17,8 @@
     "@types/cors": "^2.8.19",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "serverless-http": "^3.2.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
