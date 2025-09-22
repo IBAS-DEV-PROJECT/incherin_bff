@@ -1,26 +1,52 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handler = void 0;
-const serverless_http_1 = __importDefault(require("serverless-http"));
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const env_1 = require("../../src/config/env");
-const routes_1 = __importDefault(require("../../src/app/routes"));
-const error_1 = require("../../src/middleware/error");
-const app = (0, express_1.default)();
+import serverless from 'serverless-http';
+import express from 'express';
+import cors from 'cors';
+
+const app = express();
+
 // CORS 미들웨어
-app.use((0, cors_1.default)({
-    origin: env_1.config.cors.origin,
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true,
-}));
+  })
+);
+
 // JSON 파싱 미들웨어
-app.use(express_1.default.json());
-// 라우터 등록
-app.use(routes_1.default);
-// 에러 핸들링 미들웨어
-app.use(error_1.errorHandler);
-// Netlify Functions용 serverless 래퍼
-exports.handler = (0, serverless_http_1.default)(app);
+app.use(express.json());
+
+// 시스템 API
+app.get('/healthz', (_req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+  });
+});
+
+app.get('/version', (_req, res) => {
+  res.json({
+    version: process.env.npm_package_version || '1.0.0',
+    gitSha: process.env.COMMIT_REF || 'unknown',
+    buildTime: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'production',
+    nodeVersion: process.version,
+  });
+});
+
+app.get('/api/hello', (_req, res) => {
+  res.json({ message: 'Hello from BFF!' });
+});
+
+// 에러 핸들링
+app.use((err, _req, res, _next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    error: {
+      message: 'Internal Server Error',
+    },
+  });
+});
+
+export const handler = serverless(app);
