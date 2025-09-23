@@ -2,12 +2,17 @@ import serverless from 'serverless-http';
 import express from 'express';
 import cors from 'cors';
 
+// 빌드된 파일들을 import
+import { config } from '../../dist/config/env.js';
+import routes from '../../dist/app/routes.js';
+import { errorHandler } from '../../dist/middleware/error.js';
+
 const app = express();
 
 // CORS 미들웨어
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: config.cors.origin,
     credentials: true,
   })
 );
@@ -15,38 +20,10 @@ app.use(
 // JSON 파싱 미들웨어
 app.use(express.json());
 
-// 시스템 API
-app.get('/healthz', (_req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-  });
-});
+// 라우터 등록 (빌드된 모듈 시스템 사용)
+app.use(routes);
 
-app.get('/version', (_req, res) => {
-  res.json({
-    version: process.env.npm_package_version || '1.0.0',
-    gitSha: process.env.COMMIT_REF || 'unknown',
-    buildTime: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'production',
-    nodeVersion: process.version,
-  });
-});
-
-app.get('/api/hello', (_req, res) => {
-  res.json({ message: 'Hello from BFF!' });
-});
-
-// 에러 핸들링
-app.use((err, _req, res, _next) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: {
-      message: 'Internal Server Error',
-    },
-  });
-});
+// 에러 핸들링 미들웨어
+app.use(errorHandler);
 
 export const handler = serverless(app);
