@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { HealthCheckResponse, VersionResponse } from './system.types';
-import { backendApiService } from '../../services/external/backendApi';
+import { systemApiService } from '../../services/external/systemApi';
 import { dataTransformService } from '../../services/internal/dataTransform';
 
 const execAsync = promisify(exec);
@@ -10,7 +10,7 @@ export class SystemService {
   async getHealth(): Promise<HealthCheckResponse> {
     try {
       // 1. 백엔드 서버에서 상세한 헬스체크 데이터 가져오기
-      const serverHealthData = await backendApiService.fetchHealthCheck();
+      const serverHealthData = await systemApiService.fetchHealthCheck();
 
       // 2. 서버 데이터를 클라이언트용으로 변환
       const transformedData = dataTransformService.transformHealth(serverHealthData);
@@ -48,7 +48,7 @@ export class SystemService {
   async getVersion(): Promise<VersionResponse> {
     try {
       // 1. 백엔드 서버에서 버전 정보 가져오기
-      const serverVersionData = await backendApiService.fetchVersion();
+      const serverVersionData = await systemApiService.fetchVersion();
 
       // 2. 서버 데이터를 클라이언트용으로 변환
       const transformedData = dataTransformService.transformVersion(serverVersionData);
