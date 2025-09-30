@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
 import { config } from '../config/env';
 import routes from './routes';
 import { errorHandler } from '../middleware/error';
@@ -11,6 +12,21 @@ app.use(
   cors({
     origin: config.cors.origin,
     credentials: true,
+  })
+);
+
+// 세션 미들웨어
+app.use(
+  session({
+    secret: config.session.secret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: config.session.maxAge,
+      domain: config.session.cookieDomain,
+    },
   })
 );
 
