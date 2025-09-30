@@ -1,9 +1,9 @@
-// 외부 백엔드 서버 API 호출 서비스
-// BFF → Backend Server 통신 담당
+// 시스템 API 서비스
+// BFF → Backend Server 시스템 관련 통신 담당
 
 import { ServerHealthResponse, ServerVersionResponse } from '../../types/server/response/system';
 
-export class BackendApiService {
+export class SystemApiService {
   private readonly baseUrl: string;
 
   constructor() {
@@ -21,7 +21,7 @@ export class BackendApiService {
 
       return await response.json();
     } catch (error) {
-      console.error('Backend API health check error:', error);
+      console.error('System API health check error:', error);
       throw error;
     }
   }
@@ -37,7 +37,7 @@ export class BackendApiService {
 
       return await response.json();
     } catch (error) {
-      console.error('Backend API version fetch error:', error);
+      console.error('System API version fetch error:', error);
       throw error;
     }
   }
@@ -52,10 +52,10 @@ export class BackendApiService {
 
       return { health, version };
     } catch (error) {
-      console.error('Backend API system status fetch error:', error);
+      console.error('System API system status fetch error:', error);
       throw error;
     }
   }
 }
 
-export const backendApiService = new BackendApiService();
+export const systemApiService = new SystemApiService();
