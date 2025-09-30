@@ -43,6 +43,7 @@ export class AuthService {
       if (!tokenResponse.success || !tokenResponse.data) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Failed to exchange code for token',
@@ -59,6 +60,7 @@ export class AuthService {
       if (!userInfoResponse.success || !userInfoResponse.data) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Failed to fetch user information',
@@ -81,6 +83,7 @@ export class AuthService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         user,
         session,
@@ -90,6 +93,7 @@ export class AuthService {
       console.error('OAuth callback error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         error: {
           message: 'OAuth callback failed',
@@ -109,6 +113,7 @@ export class AuthService {
       if (!session) {
         return {
           success: false,
+          statusCode: 401,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Invalid session',
@@ -123,6 +128,7 @@ export class AuthService {
       if (!user) {
         return {
           success: false,
+          statusCode: 401,
           timestamp: new Date().toISOString(),
           error: {
             message: 'User not found',
@@ -133,6 +139,7 @@ export class AuthService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         user,
         session,
@@ -141,6 +148,7 @@ export class AuthService {
       console.error('Get current user error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         error: {
           message: 'Failed to get current user',
@@ -160,6 +168,7 @@ export class AuthService {
       if (!revoked) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           message: 'Failed to revoke session',
           error: {
@@ -171,6 +180,7 @@ export class AuthService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         message: 'Logged out successfully',
       };
@@ -178,6 +188,7 @@ export class AuthService {
       console.error('Logout error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         message: 'Logout failed',
         error: {
@@ -195,6 +206,7 @@ export class AuthService {
     if (!sessionId) {
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: false,
       };
@@ -206,6 +218,7 @@ export class AuthService {
       if (!session) {
         return {
           success: true,
+          statusCode: 200,
           timestamp: new Date().toISOString(),
           isAuthenticated: false,
         };
@@ -215,6 +228,7 @@ export class AuthService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: true,
         user: user || undefined,
@@ -224,6 +238,7 @@ export class AuthService {
       console.error('Check auth status error:', error);
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: false,
       };
@@ -240,6 +255,7 @@ export class AuthService {
       if (!session) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Invalid session',
@@ -253,6 +269,7 @@ export class AuthService {
       if (!extendedSession) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Failed to extend session',
@@ -263,6 +280,7 @@ export class AuthService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         session: extendedSession,
         expiresAt: extendedSession.expiresAt,
@@ -271,6 +289,7 @@ export class AuthService {
       console.error('Refresh session error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         error: {
           message: 'Failed to refresh session',
