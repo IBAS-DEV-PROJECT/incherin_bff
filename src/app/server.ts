@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import { config } from '../config/env';
 import routes from './routes';
 import { errorHandler } from '../middleware/error';
@@ -15,20 +15,8 @@ app.use(
   })
 );
 
-// 세션 미들웨어
-app.use(
-  session({
-    secret: config.session.secret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: config.session.maxAge,
-      domain: config.session.cookieDomain,
-    },
-  })
-);
+// Cookie 파싱 미들웨어 (JWT 토큰 읽기용)
+app.use(cookieParser());
 
 // JSON 파싱 미들웨어
 app.use(express.json());
