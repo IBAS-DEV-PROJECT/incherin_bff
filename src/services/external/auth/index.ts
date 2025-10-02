@@ -3,3 +3,4 @@
 
 export * from './googleApi';
 export * from './userApi';
+export * from './followApi';

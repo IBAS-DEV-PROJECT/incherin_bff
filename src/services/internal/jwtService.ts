@@ -11,6 +11,8 @@ export interface JwtPayload {
   name: string;
   picture?: string;
   provider: 'google';
+  createdAt: Date;
+  updatedAt: Date;
   iat: number;
   exp: number;
 }
@@ -40,6 +42,8 @@ export class JwtService {
       name: user.name,
       picture: user.picture,
       provider: user.provider,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       iat: Math.floor(Date.now() / 1000),
       exp:
         Math.floor(Date.now() / 1000) +

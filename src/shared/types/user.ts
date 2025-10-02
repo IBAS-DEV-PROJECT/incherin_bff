@@ -49,3 +49,16 @@ export interface AuthResponse {
   message?: string;
   redirectUrl?: string;
 }
+
+// JWT Payload 타입 정의 (User 정보를 포함)
+export interface JwtPayload {
+  userId: string;
+  email: string;
+  name: string;
+  picture?: string;
+  provider: 'google';
+  createdAt: Date;
+  updatedAt: Date;
+  iat: number; // Issued At
+  exp: number; // Expiration Time
+}

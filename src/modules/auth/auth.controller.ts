@@ -15,6 +15,12 @@ import {
   RefreshSessionResponse,
 } from './auth.types';
 import { sendInternalError, sendBadRequest, sendUnauthorized, sendOk } from '../../shared/response';
+import { config } from '../../config/env';
+
+// CSRF 보호를 위한 랜덤 state 생성
+const generateRandomState = (): string => {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
 
 export class AuthController {
   /**
@@ -77,7 +83,8 @@ export class AuthController {
         res.cookie('authToken', result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          maxAge: 24 * 60 * 60 * 1000, // 24시간
+          maxAge: config.session.maxAge, // JWT 만료 시간과 동일하게 설정
+          domain: config.session.cookieDomain,
           sameSite: 'lax',
         });
       }
@@ -88,7 +95,7 @@ export class AuthController {
       }
 
       // 리다이렉트 URL 결정
-      const redirectUrl = result.redirectUrl || req.session?.redirectUrl || '/dashboard';
+      const redirectUrl = result.redirectUrl || req.session?.redirectUrl || config.frontend.baseUrl;
 
       if (req.session) {
         delete req.session.redirectUrl;
@@ -109,7 +116,9 @@ export class AuthController {
   static async getCurrentUser(req: AuthRequest, res: Response) {
     try {
       const token =
-        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
+        req.cookies?.authToken ||
+        (req.headers['authorization']?.split(' ')[1] as string) ||
+        (req.headers['x-auth-token'] as string);
 
       if (!token) {
         return sendUnauthorized(res, 'Token not found', 'TOKEN_NOT_FOUND');
@@ -138,20 +147,10 @@ export class AuthController {
    */
   static async logout(req: AuthRequest, res: Response) {
     try {
-      const result = await authService.logout();
-
-      if (!result.success) {
-        return sendBadRequest(
-          res,
-          result.error?.message || 'Logout failed',
-          result.error?.code || 'LOGOUT_FAILED'
-        );
-      }
-
       // JWT 토큰 쿠키 삭제
-      res.clearCookie('authToken');
+      res.clearCookie('authToken', { domain: config.session.cookieDomain });
 
-      return sendOk(res, result);
+      return sendOk(res, { message: 'Logged out successfully' });
     } catch (error) {
       console.error('Logout error:', error);
       return sendInternalError(res, 'Logout failed', 'LOGOUT_ERROR');
@@ -165,9 +164,11 @@ export class AuthController {
   static async checkAuthStatus(req: Request, res: Response) {
     try {
       const token =
-        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
+        req.cookies?.authToken ||
+        (req.headers['authorization']?.split(' ')[1] as string) ||
+        (req.headers['x-auth-token'] as string);
 
-      const result = await authService.checkAuthStatus(token);
+      const result: AuthStatusResponse = await authService.checkAuthStatus(token);
       return sendOk(res, result);
     } catch (error) {
       console.error('Check auth status error:', error);
@@ -179,16 +180,18 @@ export class AuthController {
    * 토큰 갱신
    * POST /auth/refresh
    */
-  static async refreshToken(req: Request, res: Response) {
+  static async refreshToken(req: Request<{}, {}, RefreshTokenRequest>, res: Response) {
     try {
       const token =
-        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
+        req.cookies?.authToken ||
+        (req.headers['authorization']?.split(' ')[1] as string) ||
+        (req.headers['x-auth-token'] as string);
 
       if (!token) {
         return sendBadRequest(res, 'Token not found', 'TOKEN_NOT_FOUND');
       }
 
-      const result = await authService.refreshToken(token);
+      const result: RefreshSessionResponse = await authService.refreshToken(token);
 
       if (!result.success) {
         return sendBadRequest(
@@ -203,7 +206,8 @@ export class AuthController {
         res.cookie('authToken', result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          maxAge: 24 * 60 * 60 * 1000, // 24시간
+          maxAge: config.session.maxAge, // JWT 만료 시간과 동일하게 설정
+          domain: config.session.cookieDomain,
           sameSite: 'lax',
         });
       }
@@ -214,11 +218,4 @@ export class AuthController {
       return sendInternalError(res, 'Failed to refresh session', 'SESSION_REFRESH_ERROR');
     }
   }
-}
-
-/**
- * 랜덤 state 생성 (CSRF 보호용)
- */
-function generateRandomState(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }

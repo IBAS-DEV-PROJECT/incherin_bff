@@ -5,6 +5,7 @@ import { GoogleApiService, userApiService } from '../../services/external/auth';
 import { jwtService } from '../../services/internal/jwtService';
 import { config } from '../../config/env';
 import { User, GoogleUser } from '../../shared/types/user';
+import { JwtPayload } from '../../services/internal/jwtService';
 import {
   OAuthCallbackResponse,
   MeResponse,
@@ -68,13 +69,11 @@ export class AuthService {
         };
       }
 
-      // 3. 사용자 정보를 내부 User 형태로 변환
+      // 3. 사용자 정보를 내부 User 형태로 변환 및 백엔드 저장
       const user = await this.createOrUpdateUser(userInfoResponse.data);
 
-      // 4. JWT 토큰 생성 (세션 대체)
-      const token = jwtService.generateToken(user, {
-        expiresIn: '24h', // 24시간
-      });
+      // 4. JWT 토큰 생성 (사용자 정보 포함)
+      const token = jwtService.generateToken(user);
 
       return {
         success: true,
@@ -142,8 +141,7 @@ export class AuthService {
    * 로그아웃 처리 (JWT 토큰 무효화 - 클라이언트에서 쿠키 삭제)
    */
   async logout(): Promise<LogoutResponse> {
-    // JWT는 Stateless이므로 서버에서 할 일이 없음
-    // 클라이언트가 쿠키를 삭제하면 로그아웃 완료
+    // JWT는 서버에서 무효화할 수 없으므로, 클라이언트에게 쿠키 삭제 지시
     return {
       success: true,
       statusCode: 200,
@@ -166,9 +164,9 @@ export class AuthService {
     }
 
     try {
-      const user = jwtService.extractUser(token);
+      const decodedUser = jwtService.verifyToken(token);
 
-      if (!user) {
+      if (!decodedUser) {
         return {
           success: true,
           statusCode: 200,
@@ -177,12 +175,22 @@ export class AuthService {
         };
       }
 
+      const user: User = {
+        id: decodedUser.userId,
+        email: decodedUser.email,
+        name: decodedUser.name,
+        picture: decodedUser.picture,
+        provider: decodedUser.provider,
+        createdAt: decodedUser.createdAt,
+        updatedAt: decodedUser.updatedAt,
+      };
+
       return {
         success: true,
         statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: true,
-        user,
+        user: user,
       };
     } catch (error) {
       console.error('Check auth status error:', error);
