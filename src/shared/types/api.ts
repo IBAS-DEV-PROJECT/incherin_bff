@@ -6,6 +6,7 @@ import { Timestamp } from './common';
 // 기본 API 응답 구조
 export interface BaseApiResponse {
   success: boolean;
+  statusCode: number; // HTTP 상태 코드 추가
   timestamp: Timestamp;
 }
 

@@ -18,6 +18,7 @@ export class SystemService {
       // 3. BFF 자체 상태 정보 추가 (비즈니스 로직)
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         status: 'healthy',
         uptime: process.uptime(),
@@ -33,6 +34,7 @@ export class SystemService {
 
       return {
         success: true,
+        statusCode: 200,
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
@@ -70,6 +72,7 @@ export class SystemService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version || '1.0.0',
         gitSha,
@@ -101,6 +104,7 @@ export class SystemService {
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version || '1.0.0',
         gitSha,

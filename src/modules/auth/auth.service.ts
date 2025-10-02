@@ -1,11 +1,10 @@
 // Auth 서비스 로직
-// Google OAuth 플로우 및 세션 관리
+// Google OAuth 플로우 및 JWT 토큰 관리
 
 import { GoogleApiService } from '../../services/external/googleApi';
-import { sessionService } from '../../services/internal/sessionService';
 import { jwtService } from '../../services/internal/jwtService';
 import { config } from '../../config/env';
-import { User, AuthSession, GoogleUser } from '../../shared/types/user';
+import { User, GoogleUser } from '../../shared/types/user';
 import {
   OAuthCallbackResponse,
   MeResponse,
@@ -43,6 +42,7 @@ export class AuthService {
       if (!tokenResponse.success || !tokenResponse.data) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Failed to exchange code for token',
@@ -59,6 +59,7 @@ export class AuthService {
       if (!userInfoResponse.success || !userInfoResponse.data) {
         return {
           success: false,
+          statusCode: 400,
           timestamp: new Date().toISOString(),
           error: {
             message: 'Failed to fetch user information',
@@ -70,26 +71,24 @@ export class AuthService {
       // 3. 사용자 정보를 내부 User 형태로 변환
       const user = await this.createOrUpdateUser(userInfoResponse.data);
 
-      // 4. 세션 생성
-      const session = await sessionService.issueSession({
-        userId: user.id,
-        expiresIn: config.session.maxAge,
+      // 4. JWT 토큰 생성 (세션 대체)
+      const token = jwtService.generateToken(user, {
+        expiresIn: '24h', // 24시간
       });
-
-      // 5. 내부 JWT 토큰 생성 (백엔드 API 호출용)
-      const internalToken = jwtService.generateToken(user.id, session.sessionId);
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         user,
-        session,
+        token, // JWT 토큰 반환
         redirectUrl: config.frontend.baseUrl, // 프론트엔드 URL
       };
     } catch (error) {
       console.error('OAuth callback error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         error: {
           message: 'OAuth callback failed',
@@ -100,47 +99,36 @@ export class AuthService {
   }
 
   /**
-   * 현재 사용자 정보 조회
+   * 현재 사용자 정보 조회 (JWT 토큰에서 추출)
    */
-  async getCurrentUser(sessionId: string): Promise<MeResponse> {
+  async getCurrentUser(token: string): Promise<MeResponse> {
     try {
-      const session = await sessionService.validateSession(sessionId);
-
-      if (!session) {
-        return {
-          success: false,
-          timestamp: new Date().toISOString(),
-          error: {
-            message: 'Invalid session',
-            code: 'INVALID_SESSION',
-          },
-        };
-      }
-
-      // TODO: 실제 사용자 정보 조회 로직 구현
-      const user = await this.getUserById(session.userId);
+      // JWT 토큰에서 사용자 정보 추출
+      const user = jwtService.extractUser(token);
 
       if (!user) {
         return {
           success: false,
+          statusCode: 401,
           timestamp: new Date().toISOString(),
           error: {
-            message: 'User not found',
-            code: 'USER_NOT_FOUND',
+            message: 'Invalid or expired token',
+            code: 'INVALID_TOKEN',
           },
         };
       }
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         user,
-        session,
       };
     } catch (error) {
       console.error('Get current user error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         error: {
           message: 'Failed to get current user',
@@ -151,79 +139,56 @@ export class AuthService {
   }
 
   /**
-   * 로그아웃 처리
+   * 로그아웃 처리 (JWT 토큰 무효화 - 클라이언트에서 쿠키 삭제)
    */
-  async logout(sessionId: string): Promise<LogoutResponse> {
-    try {
-      const revoked = await sessionService.revokeSession(sessionId);
-
-      if (!revoked) {
-        return {
-          success: false,
-          timestamp: new Date().toISOString(),
-          message: 'Failed to revoke session',
-          error: {
-            message: 'Failed to revoke session',
-            code: 'LOGOUT_FAILED',
-          },
-        };
-      }
-
-      return {
-        success: true,
-        timestamp: new Date().toISOString(),
-        message: 'Logged out successfully',
-      };
-    } catch (error) {
-      console.error('Logout error:', error);
-      return {
-        success: false,
-        timestamp: new Date().toISOString(),
-        message: 'Logout failed',
-        error: {
-          message: 'Logout failed',
-          code: 'LOGOUT_ERROR',
-        },
-      };
-    }
+  async logout(): Promise<LogoutResponse> {
+    // JWT는 Stateless이므로 서버에서 할 일이 없음
+    // 클라이언트가 쿠키를 삭제하면 로그아웃 완료
+    return {
+      success: true,
+      statusCode: 200,
+      timestamp: new Date().toISOString(),
+      message: 'Logged out successfully',
+    };
   }
 
   /**
-   * 인증 상태 확인
+   * 인증 상태 확인 (JWT 토큰 검증)
    */
-  async checkAuthStatus(sessionId?: string): Promise<AuthStatusResponse> {
-    if (!sessionId) {
+  async checkAuthStatus(token?: string): Promise<AuthStatusResponse> {
+    if (!token) {
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: false,
       };
     }
 
     try {
-      const session = await sessionService.validateSession(sessionId);
+      const user = jwtService.extractUser(token);
 
-      if (!session) {
+      if (!user) {
         return {
           success: true,
+          statusCode: 200,
           timestamp: new Date().toISOString(),
           isAuthenticated: false,
         };
       }
 
-      const user = await this.getUserById(session.userId);
-
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: true,
-        user: user || undefined,
-        session,
+        user,
       };
     } catch (error) {
       console.error('Check auth status error:', error);
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: false,
       };
@@ -231,50 +196,42 @@ export class AuthService {
   }
 
   /**
-   * 세션 갱신
+   * 토큰 갱신 (JWT 토큰 재발급)
    */
-  async refreshSession(sessionId: string): Promise<RefreshSessionResponse> {
+  async refreshToken(oldToken: string): Promise<RefreshSessionResponse> {
     try {
-      const session = await sessionService.validateSession(sessionId);
+      const newToken = jwtService.refreshToken(oldToken);
 
-      if (!session) {
+      if (!newToken) {
         return {
           success: false,
+          statusCode: 401,
           timestamp: new Date().toISOString(),
           error: {
-            message: 'Invalid session',
-            code: 'INVALID_SESSION',
+            message: 'Invalid or expired token',
+            code: 'INVALID_TOKEN',
           },
         };
       }
 
-      const extendedSession = await sessionService.extendSession(sessionId);
-
-      if (!extendedSession) {
-        return {
-          success: false,
-          timestamp: new Date().toISOString(),
-          error: {
-            message: 'Failed to extend session',
-            code: 'SESSION_EXTEND_FAILED',
-          },
-        };
-      }
+      const user = jwtService.extractUser(newToken);
 
       return {
         success: true,
+        statusCode: 200,
         timestamp: new Date().toISOString(),
-        session: extendedSession,
-        expiresAt: extendedSession.expiresAt,
+        token: newToken,
+        user: user || undefined,
       };
     } catch (error) {
-      console.error('Refresh session error:', error);
+      console.error('Refresh token error:', error);
       return {
         success: false,
+        statusCode: 500,
         timestamp: new Date().toISOString(),
         error: {
-          message: 'Failed to refresh session',
-          code: 'SESSION_REFRESH_FAILED',
+          message: 'Failed to refresh token',
+          code: 'TOKEN_REFRESH_FAILED',
         },
       };
     }
@@ -292,24 +249,6 @@ export class AuthService {
       email: googleUser.email,
       name: googleUser.name,
       picture: googleUser.picture,
-      provider: 'google',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-  }
-
-  /**
-   * 사용자 ID로 사용자 정보 조회
-   */
-  private async getUserById(userId: string): Promise<User | null> {
-    // TODO: 실제 사용자 조회 로직 구현
-    // 현재는 목업 데이터 반환
-
-    return {
-      id: userId,
-      email: 'user@example.com',
-      name: 'Test User',
-      picture: 'https://via.placeholder.com/150',
       provider: 'google',
       createdAt: new Date(),
       updatedAt: new Date(),

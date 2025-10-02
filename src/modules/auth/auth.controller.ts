@@ -11,9 +11,10 @@ import {
   MeResponse,
   LogoutResponse,
   AuthStatusResponse,
-  RefreshSessionRequest,
+  RefreshTokenRequest,
   RefreshSessionResponse,
 } from './auth.types';
+import { sendInternalError, sendBadRequest, sendUnauthorized, sendOk } from '../../shared/response';
 
 export class AuthController {
   /**
@@ -39,13 +40,7 @@ export class AuthController {
       res.redirect(authUrl);
     } catch (error) {
       console.error('OAuth start error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to start OAuth',
-          code: 'OAUTH_START_FAILED',
-        },
-      });
+      return sendInternalError(res, 'Failed to start OAuth', 'OAUTH_START_FAILED');
     }
   }
 
@@ -58,39 +53,31 @@ export class AuthController {
       const { code, state } = req.query;
 
       if (!code) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Authorization code is required',
-            code: 'MISSING_CODE',
-          },
-        });
+        return sendBadRequest(res, 'Authorization code is required', 'MISSING_CODE');
       }
 
       // CSRF 보호: state 파라미터 검증
       if (req.session?.oauthState && req.session.oauthState !== state) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Invalid state parameter',
-            code: 'INVALID_STATE',
-          },
-        });
+        return sendBadRequest(res, 'Invalid state parameter', 'INVALID_STATE');
       }
 
       // OAuth 콜백 처리
       const result = await authService.handleOAuthCallback(code as string, state as string);
 
       if (!result.success) {
-        return res.status(400).json(result);
+        return sendBadRequest(
+          res,
+          result.error?.message || 'OAuth callback failed',
+          result.error?.code || 'OAUTH_CALLBACK_FAILED'
+        );
       }
 
-      // 세션 쿠키 설정
-      if (result.session) {
-        res.cookie('sessionId', result.session.sessionId, {
+      // JWT 토큰 쿠키 설정
+      if (result.token) {
+        res.cookie('authToken', result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          maxAge: result.session.expiresAt.getTime() - Date.now(),
+          maxAge: 24 * 60 * 60 * 1000, // 24시간
           sameSite: 'lax',
         });
       }
@@ -111,13 +98,7 @@ export class AuthController {
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'OAuth callback failed',
-          code: 'OAUTH_CALLBACK_ERROR',
-        },
-      });
+      return sendInternalError(res, 'OAuth callback failed', 'OAUTH_CALLBACK_ERROR');
     }
   }
 
@@ -127,34 +108,27 @@ export class AuthController {
    */
   static async getCurrentUser(req: AuthRequest, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
+      const token =
+        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
 
-      if (!sessionId) {
-        return res.status(401).json({
-          success: false,
-          error: {
-            message: 'Session not found',
-            code: 'SESSION_NOT_FOUND',
-          },
-        });
+      if (!token) {
+        return sendUnauthorized(res, 'Token not found', 'TOKEN_NOT_FOUND');
       }
 
-      const result = await authService.getCurrentUser(sessionId);
+      const result = await authService.getCurrentUser(token);
 
       if (!result.success) {
-        return res.status(400).json(result);
+        return sendBadRequest(
+          res,
+          result.error?.message || 'Failed to get user',
+          result.error?.code || 'GET_USER_FAILED'
+        );
       }
 
-      res.json(result);
+      return sendOk(res, result);
     } catch (error) {
       console.error('Get current user error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to get current user',
-          code: 'GET_USER_ERROR',
-        },
-      });
+      return sendInternalError(res, 'Failed to get current user', 'GET_USER_ERROR');
     }
   }
 
@@ -164,37 +138,23 @@ export class AuthController {
    */
   static async logout(req: AuthRequest, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
-
-      if (!sessionId) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Session not found',
-            code: 'SESSION_NOT_FOUND',
-          },
-        });
-      }
-
-      const result = await authService.logout(sessionId);
+      const result = await authService.logout();
 
       if (!result.success) {
-        return res.status(400).json(result);
+        return sendBadRequest(
+          res,
+          result.error?.message || 'Logout failed',
+          result.error?.code || 'LOGOUT_FAILED'
+        );
       }
 
-      // 세션 쿠키 삭제
-      res.clearCookie('sessionId');
+      // JWT 토큰 쿠키 삭제
+      res.clearCookie('authToken');
 
-      res.json(result);
+      return sendOk(res, result);
     } catch (error) {
       console.error('Logout error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Logout failed',
-          code: 'LOGOUT_ERROR',
-        },
-      });
+      return sendInternalError(res, 'Logout failed', 'LOGOUT_ERROR');
     }
   }
 
@@ -204,66 +164,54 @@ export class AuthController {
    */
   static async checkAuthStatus(req: Request, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
+      const token =
+        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
 
-      const result = await authService.checkAuthStatus(sessionId);
-      res.json(result);
+      const result = await authService.checkAuthStatus(token);
+      return sendOk(res, result);
     } catch (error) {
       console.error('Check auth status error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to check auth status',
-          code: 'AUTH_STATUS_ERROR',
-        },
-      });
+      return sendInternalError(res, 'Failed to check auth status', 'AUTH_STATUS_ERROR');
     }
   }
 
   /**
-   * 세션 갱신
+   * 토큰 갱신
    * POST /auth/refresh
    */
-  static async refreshSession(req: Request<{}, {}, RefreshSessionRequest>, res: Response) {
+  static async refreshToken(req: Request, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
+      const token =
+        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
 
-      if (!sessionId) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Session not found',
-            code: 'SESSION_NOT_FOUND',
-          },
-        });
+      if (!token) {
+        return sendBadRequest(res, 'Token not found', 'TOKEN_NOT_FOUND');
       }
 
-      const result = await authService.refreshSession(sessionId);
+      const result = await authService.refreshToken(token);
 
       if (!result.success) {
-        return res.status(400).json(result);
+        return sendBadRequest(
+          res,
+          result.error?.message || 'Session refresh failed',
+          result.error?.code || 'SESSION_REFRESH_FAILED'
+        );
       }
 
-      // 새로운 세션 쿠키 설정
-      if (result.session) {
-        res.cookie('sessionId', result.session.sessionId, {
+      // 새로운 JWT 토큰 쿠키 설정
+      if (result.token) {
+        res.cookie('authToken', result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          maxAge: result.session.expiresAt.getTime() - Date.now(),
+          maxAge: 24 * 60 * 60 * 1000, // 24시간
           sameSite: 'lax',
         });
       }
 
-      res.json(result);
+      return sendOk(res, result);
     } catch (error) {
       console.error('Refresh session error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to refresh session',
-          code: 'SESSION_REFRESH_ERROR',
-        },
-      });
+      return sendInternalError(res, 'Failed to refresh session', 'SESSION_REFRESH_ERROR');
     }
   }
 }

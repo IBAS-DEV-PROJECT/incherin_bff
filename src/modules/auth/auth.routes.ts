@@ -22,7 +22,7 @@ router.post('/logout', requireAuthMiddleware as any, AuthController.logout as an
 // 인증 상태 확인 (선택적 인증)
 router.get('/status', optionalAuthMiddleware as any, AuthController.checkAuthStatus as any);
 
-// 세션 갱신 (인증 필수)
-router.post('/refresh', requireAuthMiddleware as any, AuthController.refreshSession as any);
+// 토큰 갱신 (인증 필수)
+router.post('/refresh', requireAuthMiddleware as any, AuthController.refreshToken as any);
 
 export { router as authRoutes };

@@ -13,6 +13,7 @@ export class DataTransformService {
   static transformHealth(serverData: ServerHealthResponse): ClientHealthResponse {
     return {
       success: true,
+      statusCode: 200,
       timestamp: new Date().toISOString(),
       status: serverData.status === 'degraded' ? 'unhealthy' : serverData.status,
       uptime: this.formatUptime(serverData.uptime_seconds),
@@ -28,6 +29,7 @@ export class DataTransformService {
   static transformVersion(serverData: ServerVersionResponse): ClientVersionResponse {
     return {
       success: true,
+      statusCode: 200,
       timestamp: new Date().toISOString(),
       version: serverData.application.version,
       buildInfo: this.formatBuildInfo(serverData),
@@ -45,6 +47,7 @@ export class DataTransformService {
 
     return {
       success: true,
+      statusCode: 200,
       timestamp: new Date().toISOString(),
       overallStatus,
       quickStats: {
