@@ -1,7 +1,7 @@
 // Auth 서비스 로직
 // Google OAuth 플로우 및 JWT 토큰 관리
 
-import { GoogleApiService } from '../../services/external/auth';
+import { GoogleApiService, userApiService } from '../../services/external/auth';
 import { jwtService } from '../../services/internal/jwtService';
 import { config } from '../../config/env';
 import { User, GoogleUser } from '../../shared/types/user';
@@ -238,21 +238,59 @@ export class AuthService {
   }
 
   /**
-   * Google 사용자 정보를 내부 User 형태로 변환
+   * Google 사용자 정보를 내부 User 형태로 변환 및 백엔드 저장
    */
   private async createOrUpdateUser(googleUser: GoogleUser): Promise<User> {
-    // TODO: 실제 사용자 생성/업데이트 로직 구현
-    // 현재는 목업 데이터 반환
+    try {
+      // 1. 백엔드에서 기존 사용자 조회
+      const existingUserResponse = await userApiService.getUserById(googleUser.id);
 
-    return {
-      id: googleUser.id,
-      email: googleUser.email,
-      name: googleUser.name,
-      picture: googleUser.picture,
-      provider: 'google',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      if (existingUserResponse.success && existingUserResponse.data) {
+        // 2. 기존 사용자 업데이트
+        const updateResponse = await userApiService.updateUser(googleUser.id, {
+          name: googleUser.name,
+          picture: googleUser.picture,
+        });
+
+        if (updateResponse.success && updateResponse.data) {
+          return updateResponse.data;
+        }
+      }
+
+      // 3. 새 사용자 생성
+      const newUser: User = {
+        id: googleUser.id,
+        email: googleUser.email,
+        name: googleUser.name,
+        picture: googleUser.picture,
+        provider: 'google',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const createResponse = await userApiService.createUser(newUser);
+
+      if (createResponse.success && createResponse.data) {
+        return createResponse.data;
+      }
+
+      // 백엔드 API 실패시 로컬 데이터 반환
+      console.warn('Backend user API failed, using local data');
+      return newUser;
+    } catch (error) {
+      console.error('User creation/update error:', error);
+
+      // 에러 발생시 로컬 데이터 반환
+      return {
+        id: googleUser.id,
+        email: googleUser.email,
+        name: googleUser.name,
+        picture: googleUser.picture,
+        provider: 'google',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
   }
 }
 
