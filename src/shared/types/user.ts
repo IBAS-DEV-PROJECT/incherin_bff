@@ -21,13 +21,6 @@ export interface User {
   updatedAt: Date;
 }
 
-export interface AuthSession {
-  userId: string;
-  sessionId: string;
-  expiresAt: Date;
-  createdAt: Date;
-}
-
 export interface GoogleUser {
   id: string;
   email: string;
@@ -48,7 +41,6 @@ export interface GoogleToken {
 
 export interface AuthRequest extends Request {
   user?: User;
-  authSession?: AuthSession;
 }
 
 export interface AuthResponse {

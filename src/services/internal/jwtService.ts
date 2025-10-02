@@ -1,12 +1,16 @@
 // JWT 토큰 서비스
-// 백엔드 API 호출용 내부 JWT 발급 및 관리
+// 사용자 인증용 JWT 발급 및 검증
 
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
+import { User } from '../../shared/types/user';
 
 export interface JwtPayload {
   userId: string;
-  sessionId: string;
+  email: string;
+  name: string;
+  picture?: string;
+  provider: 'google';
   iat: number;
   exp: number;
 }
@@ -23,16 +27,19 @@ export class JwtService {
 
   constructor() {
     this.secret = config.backend.internalJwtSecret;
-    this.defaultExpiresIn = '1h'; // 1시간
+    this.defaultExpiresIn = '24h'; // 24시간 (세션 대체)
   }
 
   /**
-   * JWT 토큰 발급
+   * JWT 토큰 발급 (사용자 정보 포함)
    */
-  generateToken(userId: string, sessionId: string, options: JwtOptions = {}): string {
+  generateToken(user: User, options: JwtOptions = {}): string {
     const payload: JwtPayload = {
-      userId,
-      sessionId,
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      provider: user.provider,
       iat: Math.floor(Date.now() / 1000),
       exp:
         Math.floor(Date.now() / 1000) +
@@ -41,8 +48,7 @@ export class JwtService {
 
     return jwt.sign(payload, this.secret, {
       issuer: options.issuer || 'bff-service',
-      audience: options.audience || 'backend-api',
-      // expiresIn 제거 - payload에 이미 exp 속성이 있음
+      audience: options.audience || 'client-app',
     } as jwt.SignOptions);
   }
 
@@ -69,7 +75,18 @@ export class JwtService {
       return null;
     }
 
-    return this.generateToken(payload.userId, payload.sessionId, options);
+    // 기존 payload를 User 형태로 변환하여 새 토큰 발급
+    const user: User = {
+      id: payload.userId,
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+      provider: payload.provider,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return this.generateToken(user, options);
   }
 
   /**
@@ -81,11 +98,24 @@ export class JwtService {
   }
 
   /**
-   * JWT 토큰에서 세션 ID 추출
+   * JWT 토큰에서 사용자 정보 추출
    */
-  extractSessionId(token: string): string | null {
+  extractUser(token: string): User | null {
     const payload = this.verifyToken(token);
-    return payload?.sessionId || null;
+
+    if (!payload) {
+      return null;
+    }
+
+    return {
+      id: payload.userId,
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+      provider: payload.provider,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
   }
 
   /**
