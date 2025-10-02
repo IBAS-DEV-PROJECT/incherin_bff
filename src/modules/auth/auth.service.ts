@@ -5,6 +5,7 @@ import { GoogleApiService, userApiService } from '../../services/external/auth';
 import { jwtService } from '../../services/internal/jwtService';
 import { config } from '../../config/env';
 import { User, GoogleUser } from '../../shared/types/user';
+import { JwtPayload } from '../../services/internal/jwtService';
 import {
   OAuthCallbackResponse,
   MeResponse,
@@ -68,13 +69,11 @@ export class AuthService {
         };
       }
 
-      // 3. 사용자 정보를 내부 User 형태로 변환
+      // 3. 사용자 정보를 내부 User 형태로 변환 및 백엔드 저장
       const user = await this.createOrUpdateUser(userInfoResponse.data);
 
-      // 4. JWT 토큰 생성 (세션 대체)
-      const token = jwtService.generateToken(user, {
-        expiresIn: '24h', // 24시간
-      });
+      // 4. JWT 토큰 생성 (사용자 정보 포함)
+      const token = jwtService.generateToken(user);
 
       return {
         success: true,
@@ -99,14 +98,14 @@ export class AuthService {
   }
 
   /**
-   * 현재 사용자 정보 조회 (JWT 토큰에서 추출 + 백엔드에서 최신 정보 조회)
+   * 현재 사용자 정보 조회 (JWT 토큰에서 추출)
    */
   async getCurrentUser(token: string): Promise<MeResponse> {
     try {
       // JWT 토큰에서 사용자 정보 추출
-      const jwtUser = jwtService.extractUser(token);
+      const user = jwtService.extractUser(token);
 
-      if (!jwtUser) {
+      if (!user) {
         return {
           success: false,
           statusCode: 401,
@@ -118,26 +117,11 @@ export class AuthService {
         };
       }
 
-      // 백엔드에서 최신 사용자 정보 조회
-      const profileResponse = await userApiService.getMyProfile(jwtUser.id);
-
-      if (profileResponse.success && profileResponse.data) {
-        // 백엔드에서 최신 정보 반환
-        return {
-          success: true,
-          statusCode: 200,
-          timestamp: new Date().toISOString(),
-          user: profileResponse.data,
-        };
-      }
-
-      // 백엔드 조회 실패시 JWT 정보 반환
-      console.warn('Backend profile fetch failed, using JWT data');
       return {
         success: true,
         statusCode: 200,
         timestamp: new Date().toISOString(),
-        user: jwtUser,
+        user,
       };
     } catch (error) {
       console.error('Get current user error:', error);
@@ -157,8 +141,7 @@ export class AuthService {
    * 로그아웃 처리 (JWT 토큰 무효화 - 클라이언트에서 쿠키 삭제)
    */
   async logout(): Promise<LogoutResponse> {
-    // JWT는 Stateless이므로 서버에서 할 일이 없음
-    // 클라이언트가 쿠키를 삭제하면 로그아웃 완료
+    // JWT는 서버에서 무효화할 수 없으므로, 클라이언트에게 쿠키 삭제 지시
     return {
       success: true,
       statusCode: 200,
@@ -181,9 +164,9 @@ export class AuthService {
     }
 
     try {
-      const user = jwtService.extractUser(token);
+      const decodedUser = jwtService.verifyToken(token);
 
-      if (!user) {
+      if (!decodedUser) {
         return {
           success: true,
           statusCode: 200,
@@ -192,12 +175,22 @@ export class AuthService {
         };
       }
 
+      const user: User = {
+        id: decodedUser.userId,
+        email: decodedUser.email,
+        name: decodedUser.name,
+        picture: decodedUser.picture,
+        provider: decodedUser.provider,
+        createdAt: decodedUser.createdAt,
+        updatedAt: decodedUser.updatedAt,
+      };
+
       return {
         success: true,
         statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: true,
-        user,
+        user: user,
       };
     } catch (error) {
       console.error('Check auth status error:', error);
@@ -206,64 +199,6 @@ export class AuthService {
         statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: false,
-      };
-    }
-  }
-
-  /**
-   * 내 정보 수정 (백엔드 API 호출)
-   */
-  async updateMyProfile(
-    token: string,
-    userData: { name?: string; picture?: string }
-  ): Promise<MeResponse> {
-    try {
-      // JWT 토큰에서 사용자 정보 추출
-      const jwtUser = jwtService.extractUser(token);
-
-      if (!jwtUser) {
-        return {
-          success: false,
-          statusCode: 401,
-          timestamp: new Date().toISOString(),
-          error: {
-            message: 'Invalid or expired token',
-            code: 'INVALID_TOKEN',
-          },
-        };
-      }
-
-      // 백엔드에서 사용자 정보 수정
-      const updateResponse = await userApiService.updateMyProfile(jwtUser.id, userData);
-
-      if (updateResponse.success && updateResponse.data) {
-        return {
-          success: true,
-          statusCode: 200,
-          timestamp: new Date().toISOString(),
-          user: updateResponse.data,
-        };
-      }
-
-      return {
-        success: false,
-        statusCode: 400,
-        timestamp: new Date().toISOString(),
-        error: {
-          message: 'Failed to update profile',
-          code: 'PROFILE_UPDATE_FAILED',
-        },
-      };
-    } catch (error) {
-      console.error('Update profile error:', error);
-      return {
-        success: false,
-        statusCode: 500,
-        timestamp: new Date().toISOString(),
-        error: {
-          message: 'Failed to update profile',
-          code: 'PROFILE_UPDATE_ERROR',
-        },
       };
     }
   }
