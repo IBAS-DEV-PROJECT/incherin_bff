@@ -1,7 +1,7 @@
 // 시스템 API 서비스
 // BFF → Backend Server 시스템 관련 통신 담당
 
-import { ServerHealthResponse, ServerVersionResponse } from '../../types/server/response/system';
+import { ServerHealthResponse, ServerVersionResponse } from '../../../types/server/response/system';
 
 export class SystemApiService {
   private readonly baseUrl: string;

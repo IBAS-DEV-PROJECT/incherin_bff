@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { HealthCheckResponse, VersionResponse } from './system.types';
-import { systemApiService } from '../../services/external/systemApi';
+import { systemApiService } from '../../services/external/system';
 import { dataTransformService } from '../../services/internal/dataTransform';
 
 const execAsync = promisify(exec);

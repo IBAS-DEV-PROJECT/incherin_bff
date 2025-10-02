@@ -1,7 +1,7 @@
 // Google API 서비스
 // Google OAuth 2.0 토큰 교환 및 사용자 정보 조회
 
-import { HttpClient } from '../../shared/http';
+import { HttpClient } from '../../../shared/http';
 
 // Google API 관련 타입 정의
 export interface GoogleOAuthConfig {
