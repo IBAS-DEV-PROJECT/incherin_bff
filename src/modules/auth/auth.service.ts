@@ -1,7 +1,7 @@
 // Auth 서비스 로직
 // Google OAuth 플로우 및 JWT 토큰 관리
 
-import { GoogleApiService } from '../../services/external/googleApi';
+import { GoogleApiService } from '../../services/external/auth';
 import { jwtService } from '../../services/internal/jwtService';
 import { config } from '../../config/env';
 import { User, GoogleUser } from '../../shared/types/user';
