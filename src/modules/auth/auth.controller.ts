@@ -11,7 +11,7 @@ import {
   MeResponse,
   LogoutResponse,
   AuthStatusResponse,
-  RefreshSessionRequest,
+  RefreshTokenRequest,
   RefreshSessionResponse,
 } from './auth.types';
 import { sendInternalError, sendBadRequest, sendUnauthorized, sendOk } from '../../shared/response';
@@ -72,12 +72,12 @@ export class AuthController {
         );
       }
 
-      // 세션 쿠키 설정
-      if (result.session) {
-        res.cookie('sessionId', result.session.sessionId, {
+      // JWT 토큰 쿠키 설정
+      if (result.token) {
+        res.cookie('authToken', result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          maxAge: result.session.expiresAt.getTime() - Date.now(),
+          maxAge: 24 * 60 * 60 * 1000, // 24시간
           sameSite: 'lax',
         });
       }
@@ -108,13 +108,14 @@ export class AuthController {
    */
   static async getCurrentUser(req: AuthRequest, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
+      const token =
+        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
 
-      if (!sessionId) {
-        return sendUnauthorized(res, 'Session not found', 'SESSION_NOT_FOUND');
+      if (!token) {
+        return sendUnauthorized(res, 'Token not found', 'TOKEN_NOT_FOUND');
       }
 
-      const result = await authService.getCurrentUser(sessionId);
+      const result = await authService.getCurrentUser(token);
 
       if (!result.success) {
         return sendBadRequest(
@@ -137,13 +138,7 @@ export class AuthController {
    */
   static async logout(req: AuthRequest, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
-
-      if (!sessionId) {
-        return sendBadRequest(res, 'Session not found', 'SESSION_NOT_FOUND');
-      }
-
-      const result = await authService.logout(sessionId);
+      const result = await authService.logout();
 
       if (!result.success) {
         return sendBadRequest(
@@ -153,8 +148,8 @@ export class AuthController {
         );
       }
 
-      // 세션 쿠키 삭제
-      res.clearCookie('sessionId');
+      // JWT 토큰 쿠키 삭제
+      res.clearCookie('authToken');
 
       return sendOk(res, result);
     } catch (error) {
@@ -169,9 +164,10 @@ export class AuthController {
    */
   static async checkAuthStatus(req: Request, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
+      const token =
+        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
 
-      const result = await authService.checkAuthStatus(sessionId);
+      const result = await authService.checkAuthStatus(token);
       return sendOk(res, result);
     } catch (error) {
       console.error('Check auth status error:', error);
@@ -180,18 +176,19 @@ export class AuthController {
   }
 
   /**
-   * 세션 갱신
+   * 토큰 갱신
    * POST /auth/refresh
    */
-  static async refreshSession(req: Request<{}, {}, RefreshSessionRequest>, res: Response) {
+  static async refreshToken(req: Request, res: Response) {
     try {
-      const sessionId = req.cookies?.sessionId || (req.headers['x-session-id'] as string);
+      const token =
+        req.cookies?.authToken || (req.headers['authorization']?.replace('Bearer ', '') as string);
 
-      if (!sessionId) {
-        return sendBadRequest(res, 'Session not found', 'SESSION_NOT_FOUND');
+      if (!token) {
+        return sendBadRequest(res, 'Token not found', 'TOKEN_NOT_FOUND');
       }
 
-      const result = await authService.refreshSession(sessionId);
+      const result = await authService.refreshToken(token);
 
       if (!result.success) {
         return sendBadRequest(
@@ -201,12 +198,12 @@ export class AuthController {
         );
       }
 
-      // 새로운 세션 쿠키 설정
-      if (result.session) {
-        res.cookie('sessionId', result.session.sessionId, {
+      // 새로운 JWT 토큰 쿠키 설정
+      if (result.token) {
+        res.cookie('authToken', result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          maxAge: result.session.expiresAt.getTime() - Date.now(),
+          maxAge: 24 * 60 * 60 * 1000, // 24시간
           sameSite: 'lax',
         });
       }

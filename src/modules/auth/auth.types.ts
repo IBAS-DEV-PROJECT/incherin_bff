@@ -2,7 +2,7 @@
 // 인증 관련 타입들
 
 import { BaseApiResponse } from '../../shared/types/api';
-import { User, AuthSession, GoogleUser, GoogleToken } from '../../shared/types/user';
+import { User, GoogleUser, GoogleToken } from '../../shared/types/user';
 
 // OAuth 시작 요청
 export interface OAuthStartRequest {
@@ -19,7 +19,7 @@ export interface OAuthCallbackRequest {
 // OAuth 콜백 응답
 export interface OAuthCallbackResponse extends BaseApiResponse {
   user?: User;
-  session?: AuthSession;
+  token?: string; // JWT 토큰
   redirectUrl?: string;
   error?: {
     message: string;
@@ -30,7 +30,6 @@ export interface OAuthCallbackResponse extends BaseApiResponse {
 // 현재 사용자 정보 응답
 export interface MeResponse extends BaseApiResponse {
   user?: User;
-  session?: AuthSession;
   error?: {
     message: string;
     code: string;
@@ -50,7 +49,6 @@ export interface LogoutResponse extends BaseApiResponse {
 export interface AuthStatusResponse extends BaseApiResponse {
   isAuthenticated: boolean;
   user?: User;
-  session?: AuthSession;
 }
 
 // Google OAuth 설정
@@ -68,15 +66,15 @@ export interface OAuthError {
   details?: any;
 }
 
-// 세션 갱신 요청
-export interface RefreshSessionRequest {
-  sessionId: string;
+// 토큰 갱신 요청
+export interface RefreshTokenRequest {
+  token: string;
 }
 
-// 세션 갱신 응답
+// 토큰 갱신 응답
 export interface RefreshSessionResponse extends BaseApiResponse {
-  session?: AuthSession;
-  expiresAt?: Date;
+  token?: string; // 새 JWT 토큰
+  user?: User;
   error?: {
     message: string;
     code: string;
