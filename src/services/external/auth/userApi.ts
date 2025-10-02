@@ -93,6 +93,60 @@ export class UserApiService {
       data: user,
     };
   }
+
+  /**
+   * 내 정보 조회 (현재 로그인한 사용자)
+   * GET /users/me
+   * TODO: 백엔드 API 명세서 나오면 구현
+   */
+  async getMyProfile(userId: string): Promise<ApiResponse<User>> {
+    // TODO: GET /users/me 호출
+    // 현재는 더미 데이터 반환
+
+    const user: User = {
+      id: userId,
+      email: `${userId}@example.com`,
+      name: `My Profile ${userId}`,
+      picture: 'https://example.com/my-profile.png',
+      provider: 'google',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return {
+      success: true,
+      statusCode: 200,
+      timestamp: new Date().toISOString(),
+      data: user,
+    };
+  }
+
+  /**
+   * 내 정보 수정 (현재 로그인한 사용자)
+   * PATCH /users/me
+   * TODO: 백엔드 API 명세서 나오면 구현
+   */
+  async updateMyProfile(userId: string, userData: UpdateUserRequest): Promise<ApiResponse<User>> {
+    // TODO: PATCH /users/me 호출
+    // 현재는 더미 데이터 반환
+
+    const user: User = {
+      id: userId,
+      email: `${userId}@example.com`,
+      name: userData.name || `Updated User ${userId}`,
+      picture: userData.picture || 'https://example.com/updated-profile.png',
+      provider: 'google',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return {
+      success: true,
+      statusCode: 200,
+      timestamp: new Date().toISOString(),
+      data: user,
+    };
+  }
 }
 
 export const userApiService = new UserApiService();

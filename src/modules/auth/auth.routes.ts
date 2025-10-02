@@ -25,4 +25,7 @@ router.get('/status', optionalAuthMiddleware as any, AuthController.checkAuthSta
 // 토큰 갱신 (인증 필수)
 router.post('/refresh', requireAuthMiddleware as any, AuthController.refreshToken as any);
 
+// 내 정보 수정 (인증 필수)
+router.patch('/me', requireAuthMiddleware as any, AuthController.updateMyProfile as any);
+
 export { router as authRoutes };

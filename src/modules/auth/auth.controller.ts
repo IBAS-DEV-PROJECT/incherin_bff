@@ -214,6 +214,41 @@ export class AuthController {
       return sendInternalError(res, 'Failed to refresh session', 'SESSION_REFRESH_ERROR');
     }
   }
+
+  /**
+   * 내 정보 수정
+   * PATCH /auth/me
+   */
+  static async updateMyProfile(req: AuthRequest, res: Response) {
+    try {
+      const token =
+        req.cookies?.authToken ||
+        (req.headers['authorization']?.split(' ')[1] as string) ||
+        (req.headers['x-auth-token'] as string);
+      const { name, picture } = req.body;
+
+      if (!token) {
+        return sendUnauthorized(res, 'Token not found', 'TOKEN_NOT_FOUND');
+      }
+
+      const result = await authService.updateMyProfile(token, { name, picture });
+
+      if (!result.success) {
+        return sendBadRequest(
+          res,
+          result.error?.message || 'Failed to update profile',
+          result.error?.code || 'PROFILE_UPDATE_FAILED'
+        );
+      }
+
+      // 토큰은 그대로 유지 (재발급하지 않음)
+
+      return sendOk(res, result);
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return sendInternalError(res, 'Failed to update profile', 'PROFILE_UPDATE_ERROR');
+    }
+  }
 }
 
 /**

@@ -99,14 +99,14 @@ export class AuthService {
   }
 
   /**
-   * 현재 사용자 정보 조회 (JWT 토큰에서 추출)
+   * 현재 사용자 정보 조회 (JWT 토큰에서 추출 + 백엔드에서 최신 정보 조회)
    */
   async getCurrentUser(token: string): Promise<MeResponse> {
     try {
       // JWT 토큰에서 사용자 정보 추출
-      const user = jwtService.extractUser(token);
+      const jwtUser = jwtService.extractUser(token);
 
-      if (!user) {
+      if (!jwtUser) {
         return {
           success: false,
           statusCode: 401,
@@ -118,11 +118,26 @@ export class AuthService {
         };
       }
 
+      // 백엔드에서 최신 사용자 정보 조회
+      const profileResponse = await userApiService.getMyProfile(jwtUser.id);
+
+      if (profileResponse.success && profileResponse.data) {
+        // 백엔드에서 최신 정보 반환
+        return {
+          success: true,
+          statusCode: 200,
+          timestamp: new Date().toISOString(),
+          user: profileResponse.data,
+        };
+      }
+
+      // 백엔드 조회 실패시 JWT 정보 반환
+      console.warn('Backend profile fetch failed, using JWT data');
       return {
         success: true,
         statusCode: 200,
         timestamp: new Date().toISOString(),
-        user,
+        user: jwtUser,
       };
     } catch (error) {
       console.error('Get current user error:', error);
@@ -191,6 +206,64 @@ export class AuthService {
         statusCode: 200,
         timestamp: new Date().toISOString(),
         isAuthenticated: false,
+      };
+    }
+  }
+
+  /**
+   * 내 정보 수정 (백엔드 API 호출)
+   */
+  async updateMyProfile(
+    token: string,
+    userData: { name?: string; picture?: string }
+  ): Promise<MeResponse> {
+    try {
+      // JWT 토큰에서 사용자 정보 추출
+      const jwtUser = jwtService.extractUser(token);
+
+      if (!jwtUser) {
+        return {
+          success: false,
+          statusCode: 401,
+          timestamp: new Date().toISOString(),
+          error: {
+            message: 'Invalid or expired token',
+            code: 'INVALID_TOKEN',
+          },
+        };
+      }
+
+      // 백엔드에서 사용자 정보 수정
+      const updateResponse = await userApiService.updateMyProfile(jwtUser.id, userData);
+
+      if (updateResponse.success && updateResponse.data) {
+        return {
+          success: true,
+          statusCode: 200,
+          timestamp: new Date().toISOString(),
+          user: updateResponse.data,
+        };
+      }
+
+      return {
+        success: false,
+        statusCode: 400,
+        timestamp: new Date().toISOString(),
+        error: {
+          message: 'Failed to update profile',
+          code: 'PROFILE_UPDATE_FAILED',
+        },
+      };
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return {
+        success: false,
+        statusCode: 500,
+        timestamp: new Date().toISOString(),
+        error: {
+          message: 'Failed to update profile',
+          code: 'PROFILE_UPDATE_ERROR',
+        },
       };
     }
   }
