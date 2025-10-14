@@ -47,9 +47,5 @@ app.use((req, res) => {
   });
 });
 
-// Netlify Functions는 '/.netlify/functions/server/*' 아래로 요청을 전달합니다.
-// 내부 Express 앱을 해당 경로에 마운트하여 라우팅이 일치하도록 합니다.
-const handlerApp = express();
-handlerApp.use('/.netlify/functions/server', app);
-
-export const handler = serverless(handlerApp);
+// Netlify는 원래 경로(/api/...) 그대로 전달하므로 앱을 그대로 내보냅니다.
+export const handler = serverless(app);
