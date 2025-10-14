@@ -29,6 +29,12 @@ export class AuthController {
    */
   static async startOAuth(req: Request<{}, {}, OAuthStartRequest>, res: Response) {
     try {
+      console.log('OAuth start - Environment variables:', {
+        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET',
+        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET',
+        GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || 'NOT SET',
+      });
+
       const { state, redirectUrl } = req.query;
 
       // CSRF 보호를 위한 state 파라미터 생성
@@ -36,6 +42,7 @@ export class AuthController {
 
       // Google OAuth URL 생성
       const authUrl = authService.generateAuthUrl(csrfState);
+      console.log('Generated auth URL:', authUrl);
 
       // 세션에 state와 redirectUrl 저장 (선택사항)
       if (req.session) {
@@ -84,7 +91,7 @@ export class AuthController {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           maxAge: config.session.maxAge, // JWT 만료 시간과 동일하게 설정
-          domain: config.session.cookieDomain,
+          domain: process.env.NODE_ENV === 'production' ? config.session.cookieDomain : undefined,
           sameSite: 'lax',
         });
       }
