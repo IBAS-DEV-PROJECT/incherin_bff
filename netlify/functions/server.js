@@ -31,8 +31,7 @@ app.use(cookieParser());
 // JSON 파싱 미들웨어
 app.use(express.json());
 
-// 정식 라우터 등록: Netlify redirects에서 '/api/*' → '/.netlify/functions/server/:splat'
-// 으로 전달되므로 해당 베이스 경로에 마운트합니다.
+// 라우터 등록 (단일 진입: Netlify 리다이렉트 대상 경로로만 마운트)
 app.use('/.netlify/functions/server', routes);
 
 // 정식 에러 핸들러
