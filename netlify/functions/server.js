@@ -3,10 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-// 빌드된 파일들을 import - 절대 경로 사용
-import routes from '/var/task/dist/app/routes.js';
-import { errorHandler } from '/var/task/dist/middleware/error.js';
-
 const app = express();
 
 // CORS 미들웨어 - 환경변수 직접 사용
@@ -48,43 +44,62 @@ app.get('/debug', (req, res) => {
   });
 });
 
-// 임시 라우트 (빌드된 routes.js import 실패 시 대체)
-try {
-  app.use(routes);
-} catch (error) {
-  console.log('Failed to import routes, using fallback routes');
-
-  // 기본 라우트들
-  app.get('/auth/status', (req, res) => {
-    res.json({
-      success: true,
-      isAuthenticated: false,
-      timestamp: new Date().toISOString(),
-    });
+// 기본 라우트들 (import 없이 직접 구현)
+app.get('/auth/status', (req, res) => {
+  res.json({
+    success: true,
+    isAuthenticated: false,
+    message: 'Auth status endpoint working',
+    timestamp: new Date().toISOString(),
   });
+});
 
-  app.get('/auth/google', (req, res) => {
-    res.json({
-      message: 'OAuth endpoint - Google OAuth configuration needed',
-      error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-      timestamp: new Date().toISOString(),
-    });
-  });
-}
+app.get('/auth/google', (req, res) => {
+  // 환경변수 확인
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleCallbackUrl = process.env.GOOGLE_CALLBACK_URL;
 
-// 에러 핸들링 미들웨어
-try {
-  app.use(errorHandler);
-} catch (error) {
-  console.log('Failed to import error handler, using fallback');
-  app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    res.status(500).json({
+  if (!googleClientId || !googleCallbackUrl) {
+    return res.json({
       success: false,
-      error: 'Internal server error',
+      message: 'Google OAuth not configured',
+      error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
+      env: {
+        GOOGLE_CLIENT_ID: googleClientId ? 'SET' : 'NOT SET',
+        GOOGLE_CALLBACK_URL: googleCallbackUrl || 'NOT SET',
+      },
       timestamp: new Date().toISOString(),
     });
+  }
+
+  // Google OAuth URL 생성 (간단한 버전)
+  const state = Math.random().toString(36).substring(2);
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(
+    googleCallbackUrl
+  )}&response_type=code&scope=openid email profile&state=${state}`;
+
+  res.redirect(authUrl);
+});
+
+// 기본 에러 핸들링
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    message: err.message,
+    timestamp: new Date().toISOString(),
   });
-}
+});
+
+// 404 핸들러
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Not Found',
+    message: `Route ${req.originalUrl} not found`,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 export const handler = serverless(app);
