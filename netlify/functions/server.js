@@ -92,8 +92,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 핸들러
-app.use('*', (req, res) => {
+// 404 핸들러 (와일드카드 경로 사용 지양: path-to-regexp 에러 방지)
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: 'Not Found',
@@ -102,4 +102,9 @@ app.use('*', (req, res) => {
   });
 });
 
-export const handler = serverless(app);
+// Netlify Functions는 '/.netlify/functions/server/*' 아래로 요청을 전달합니다.
+// 내부 Express 앱을 해당 경로에 마운트하여 라우팅이 일치하도록 합니다.
+const handlerApp = express();
+handlerApp.use('/.netlify/functions/server', app);
+
+export const handler = serverless(handlerApp);
