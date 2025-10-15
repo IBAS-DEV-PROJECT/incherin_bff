@@ -9,16 +9,6 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/server/api/:splat"
+  to = "/.netlify/functions/server/:splat"
   status = 200
   force = true
-
-[[redirects]]
-  from = "/healthz"
-  to = "/.netlify/functions/server"
-  status = 200
-
-[[redirects]]
-  from = "/version"
-  to = "/.netlify/functions/server"
-  status = 200

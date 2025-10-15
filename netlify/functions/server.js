@@ -31,8 +31,8 @@ app.use(cookieParser());
 // JSON 파싱 미들웨어
 app.use(express.json());
 
-// 라우터 등록 (단일 진입: Netlify 리다이렉트 대상 경로로만 마운트)
-app.use('/.netlify/functions/server', routes);
+// 라우터 등록 (단일 진입: /api 베이스)
+app.use('/api', routes);
 
 // 정식 에러 핸들러
 app.use(errorHandler);
