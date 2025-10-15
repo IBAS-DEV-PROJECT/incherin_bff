@@ -11,7 +11,7 @@ const router = Router();
 router.get('/google', AuthController.startOAuth);
 
 // Google OAuth 콜백
-router.get('/callback', AuthController.handleOAuthCallback);
+router.get('/google/callback', AuthController.handleOAuthCallback);
 
 // 현재 사용자 정보 조회 (인증 필수)
 router.get('/me', requireAuthMiddleware as any, AuthController.getCurrentUser as any);
