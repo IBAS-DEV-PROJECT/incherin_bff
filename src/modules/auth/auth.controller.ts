@@ -103,8 +103,8 @@ export class AuthController {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           maxAge: config.session.maxAge, // JWT 만료 시간과 동일하게 설정
-          domain: process.env.NODE_ENV === 'production' ? config.session.cookieDomain : undefined,
-          sameSite: 'lax',
+          domain: config.session.cookieDomain,
+          sameSite: 'none',
         });
       }
 
@@ -227,7 +227,7 @@ export class AuthController {
           secure: process.env.NODE_ENV === 'production',
           maxAge: config.session.maxAge, // JWT 만료 시간과 동일하게 설정
           domain: config.session.cookieDomain,
-          sameSite: 'lax',
+          sameSite: 'none',
         });
       }
 
