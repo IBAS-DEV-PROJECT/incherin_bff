@@ -43,6 +43,18 @@ export class AuthController {
       // Google OAuth URL 생성
       const authUrl = authService.generateAuthUrl(csrfState);
       console.log('Generated auth URL:', authUrl);
+      // redirect_uri 확인용 로그 (auth URL에 포함된 실제 값)
+      try {
+        const redirectInUrl = new URL(authUrl).searchParams.get('redirect_uri');
+        console.log(
+          'OAuth start - redirect_uri:',
+          redirectInUrl,
+          '| GOOGLE_CALLBACK_URL(env):',
+          config.google.callbackUrl
+        );
+      } catch (e) {
+        console.log('OAuth start - redirect_uri 파싱 실패');
+      }
 
       // 세션에 state와 redirectUrl 저장 (선택사항)
       if (req.session) {
