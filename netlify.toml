@@ -12,9 +12,3 @@
   to = "/.netlify/functions/server/:splat"
   status = 200
   force = true
-
-[[redirects]]
-  from = "/auth/*"
-  to   = "/.netlify/functions/server/api/auth/:splat"
-  status = 200
-  force = true
