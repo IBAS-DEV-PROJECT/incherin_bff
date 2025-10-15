@@ -113,7 +113,7 @@ export class AuthController {
         delete req.session.oauthState;
       }
 
-      // 리다이렉트 URL 결정 (루트로 정규화하고 쿼리/해시 제거)
+      // 리다이렉트 URL 결정 (성공 시: 프론트 루트로, 쿼리/해시 제거)
       const rawRedirect = result.redirectUrl || req.session?.redirectUrl || config.frontend.baseUrl;
 
       if (req.session) {
@@ -122,18 +122,25 @@ export class AuthController {
 
       try {
         const url = new URL(rawRedirect || config.frontend.baseUrl);
-        url.pathname = '/auth';
+        url.pathname = '/';
         url.search = '';
         url.hash = '';
-        // 프론트엔드 루트로 303 See Other 리다이렉트 (쿼리 제거 보장)
+        // 성공: 프론트 루트로 303 리다이렉트
         res.redirect(303, url.toString());
       } catch {
-        // URL 파싱 실패 시 안전하게 기본 루트로
         res.redirect(303, config.frontend.baseUrl);
       }
     } catch (error) {
       console.error('OAuth callback error:', error);
-      return sendInternalError(res, 'OAuth callback failed', 'OAUTH_CALLBACK_ERROR');
+      // 실패: 프론트 '/auth?error=oauth'로 303 리다이렉트
+      try {
+        const fail = new URL(config.frontend.baseUrl);
+        fail.pathname = '/auth';
+        fail.search = 'error=oauth';
+        return res.redirect(303, fail.toString());
+      } catch {
+        return res.redirect(303, `${config.frontend.baseUrl.replace(/\/$/, '')}/auth?error=oauth`);
+      }
     }
   }
 
